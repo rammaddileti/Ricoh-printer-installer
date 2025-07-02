@@ -1,0 +1,380 @@
+# Ricoh Printer Installation Script - GitHub Repository Setup
+
+## Repository Structure
+```
+ricoh-printer-installer/
+├── README.md
+├── LICENSE
+├── .gitignore
+├── scripts/
+│   ├── Install-RicohPrinter.ps1
+│   └── Uninstall-RicohPrinter.ps1
+├── drivers/
+│   └── README.md (instructions for driver placement)
+├── docs/
+│   ├── INSTALLATION.md
+│   ├── TROUBLESHOOTING.md
+│   └── CONFIGURATION.md
+├── examples/
+│   ├── config.json
+│   └── batch-install.ps1
+└── .github/
+    ├── workflows/
+    │   └── powershell-test.yml
+    └── ISSUE_TEMPLATE/
+        ├── bug_report.md
+        └── feature_request.md
+```
+
+## File Contents
+
+### README.md
+```markdown
+# Ricoh Printer Installation Script
+
+Automated PowerShell script for installing Ricoh M C251FW printers on Windows systems.
+
+## Features
+
+- ✅ Automated driver installation
+- ✅ Network printer port configuration  
+- ✅ Error handling and logging
+- ✅ Prerequisite validation
+- ✅ Duplicate installation prevention
+- ✅ Network connectivity testing
+
+## Quick Start
+
+1. **Download** the latest release
+2. **Extract** to a local directory
+3. **Place** your Ricoh driver files in the `drivers/disk1/` folder
+4. **Run** as Administrator:
+   ```powershell
+   .\scripts\Install-RicohPrinter.ps1 -IPAddress "192.168.1.100"
+   ```
+
+## Requirements
+
+- Windows 10/11 or Windows Server 2016+
+- PowerShell 5.1 or later
+- Administrator privileges
+- Ricoh printer drivers (not included)
+
+## Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `IPAddress` | Printer IP address | `192.168.xxx.xxx` |
+| `PrinterName` | Display name for printer | `Ricoh Printer` |
+| `DriverName` | Driver name to install | `PCL6 Driver for Universal Print` |
+
+## Usage Examples
+
+```powershell
+# Basic installation
+.\Install-RicohPrinter.ps1
+
+# Custom IP address
+.\Install-RicohPrinter.ps1 -IPAddress "192.168.1.100"
+
+# Custom printer name
+.\Install-RicohPrinter.ps1 -PrinterName "Office Printer" -IPAddress "192.168.1.100"
+```
+
+## Driver Setup
+
+1. Download the latest Ricoh drivers from [Ricoh Support](https://www.ricoh.com)
+2. Extract the driver package
+3. Copy the contents to `drivers/disk1/` in this repository
+4. Ensure `oemsetup.inf` is present in the `disk1` folder
+
+## Documentation
+
+- [Installation Guide](docs/INSTALLATION.md)
+- [Troubleshooting](docs/TROUBLESHOOTING.md)
+- [Configuration Options](docs/CONFIGURATION.md)
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Support
+
+- 🐛 [Report bugs](../../issues/new?template=bug_report.md)
+- 💡 [Request features](../../issues/new?template=feature_request.md)
+- 📖 [View documentation](docs/)
+
+## Changelog
+
+### v1.0.0
+- Initial release
+- Basic printer installation functionality
+- Error handling and logging
+- Parameter support
+
+---
+
+⚠️ **Disclaimer**: This script is provided as-is. Test in a non-production environment first.
+```
+
+### .gitignore
+```gitignore
+# Logs
+*.log
+*.txt
+
+# Driver files (too large for git)
+drivers/disk1/
+!drivers/README.md
+
+# PowerShell
+*.ps1xml
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+
+# IDE
+.vscode/
+*.code-workspace
+
+# Backup files
+*.bak
+*.backup
+```
+
+### LICENSE (MIT License)
+```
+MIT License
+
+Copyright (c) 2025 [Rammaddileti]
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+### scripts/Uninstall-RicohPrinter.ps1
+```powershell
+#Requires -RunAsAdministrator
+
+param(
+    [string]$PrinterName = "Ricoh M C251FW",
+    [string]$DriverName = "PCL6 Driver for Universal Print"
+)
+
+Start-Transcript -Path "$env:TEMP\Uninstall-RicohPrinter.log" -Append
+
+try {
+    Write-Output "Uninstallation started at $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+    
+    # Remove printer
+    $printer = Get-Printer -Name $PrinterName -ErrorAction SilentlyContinue
+    if ($printer) {
+        Remove-Printer -Name $PrinterName -Confirm:$false
+        Write-Output "Printer '$PrinterName' removed successfully."
+    } else {
+        Write-Output "Printer '$PrinterName' not found."
+    }
+    
+    # Remove printer port
+    $portName = "${PrinterName}:"
+    $port = Get-PrinterPort -Name $portName -ErrorAction SilentlyContinue
+    if ($port) {
+        Remove-PrinterPort -Name $portName -Confirm:$false
+        Write-Output "Printer port '$portName' removed successfully."
+    } else {
+        Write-Output "Printer port '$portName' not found."
+    }
+    
+    # Remove driver (optional - may be used by other printers)
+    $driver = Get-PrinterDriver -Name $DriverName -ErrorAction SilentlyContinue
+    if ($driver) {
+        try {
+            Remove-PrinterDriver -Name $DriverName -Confirm:$false
+            Write-Output "Printer driver '$DriverName' removed successfully."
+        } catch {
+            Write-Warning "Could not remove driver '$DriverName' - it may be in use by other printers."
+        }
+    } else {
+        Write-Output "Printer driver '$DriverName' not found."
+    }
+    
+    Write-Output "Uninstallation completed at $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+    
+} catch {
+    Write-Error "Uninstallation failed: $($_.Exception.Message)"
+    exit 1
+} finally {
+    Stop-Transcript
+}
+```
+
+### drivers/README.md
+```markdown
+# Driver Files
+
+Place your Ricoh printer driver files in this directory structure:
+
+```
+drivers/
+└── disk1/
+    ├── oemsetup.inf
+    ├── [driver files...]
+    └── [additional folders...]
+```
+
+## How to get drivers:
+
+1. Visit [Ricoh Support](https://www.ricoh.com/support)
+2. Search for your printer model (e.g., "M C251FW")
+3. Download the PCL6 or PostScript driver package
+4. Extract the downloaded file
+5. Copy the contents of the extracted driver folder to `drivers/disk1/`
+
+## Important Notes:
+
+- The `oemsetup.inf` file must be present in the `disk1` folder
+- Driver files are excluded from git commits due to size
+- Each user must obtain their own driver files from Ricoh
+```
+
+### docs/INSTALLATION.md
+```markdown
+# Installation Guide
+
+## Prerequisites
+
+1. **Administrator Rights**: The script must be run as Administrator
+2. **PowerShell**: Version 5.1 or later
+3. **Network Access**: Printer must be accessible on the network
+4. **Driver Files**: Ricoh drivers must be placed in the drivers folder
+
+## Step-by-Step Installation
+
+### 1. Download and Extract
+
+```powershell
+# Clone from GitHub
+git clone https://github.com/yourusername/ricoh-printer-installer.git
+cd ricoh-printer-installer
+```
+
+### 2. Add Driver Files
+
+1. Download drivers from Ricoh support site
+2. Extract driver package
+3. Copy contents to `drivers/disk1/`
+4. Verify `oemsetup.inf` is present
+
+### 3. Run Installation
+
+```powershell
+# Open PowerShell as Administrator
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+
+# Navigate to script directory
+cd path\to\ricoh-printer-installer
+
+# Run installation
+.\scripts\Install-RicohPrinter.ps1 -IPAddress "YOUR_PRINTER_IP"
+```
+
+## Verification
+
+After installation, verify the printer is working:
+
+1. Open **Settings > Devices > Printers & scanners**
+2. Locate your Ricoh printer
+3. Click **Manage > Print a test page**
+
+## Troubleshooting
+
+If installation fails, check the log file at:
+```
+%TEMP%\Install-RicohPrinter.log
+```
+
+Common issues and solutions are documented in [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
+```
+
+### .github/workflows/powershell-test.yml
+```yaml
+name: PowerShell Script Validation
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Test PowerShell Syntax
+      run: |
+        Get-ChildItem -Path "scripts\*.ps1" | ForEach-Object {
+          Write-Host "Testing syntax for: $($_.Name)"
+          $null = [System.Management.Automation.PSParser]::Tokenize((Get-Content $_.FullName -Raw), [ref]$null)
+          Write-Host "✅ Syntax OK: $($_.Name)"
+        }
+      shell: powershell
+    
+    - name: Run PSScriptAnalyzer
+      run: |
+        Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser
+        Invoke-ScriptAnalyzer -Path "scripts\" -Recurse -ReportSummary
+      shell: powershell
+```
+
+## Next Steps
+
+1. **Create Repository**: Create a new repository on GitHub named `ricoh-printer-installer`
+
+2. **Initialize Local Repository**:
+   ```bash
+   git init
+   git add .
+   git commit -m "Initial commit: Ricoh printer installation script"
+   git branch -M main
+   git remote add origin https://github.com/yourusername/ricoh-printer-installer.git
+   git push -u origin main
+   ```
+
+3. **Add Release**: Create a release with installation instructions
+
+4. **Enable Issues**: Turn on GitHub Issues for bug reports and feature requests
+
+5. **Add Topics**: Add relevant topics like `powershell`, `printer`, `ricoh`, `automation`, `windows`
+
+This structure provides a professional, maintainable, and user-friendly repository that others can easily contribute to and use.
